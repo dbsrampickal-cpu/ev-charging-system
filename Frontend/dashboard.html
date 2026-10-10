@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Charging Network | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .wrap { max-width: 1120px; margin: 0 auto; padding: 0 22px 60px; }
+
+        /* ---------- Top bar ---------- */
+        .topbar { position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(6,10,16,.72); border-bottom: 1px solid var(--border); }
+        .topbar-in { max-width: 1120px; margin: 0 auto; padding: 14px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .user-chip { display: flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: .8rem; color: #04130c; background: var(--accent-grad); }
+        .user-chip small { display: block; line-height: 1.1; font-size: .7rem; color: var(--muted); }
+        .user-chip b { font-size: .86rem; line-height: 1.2; }
+
+        /* ---------- Greeting ---------- */
+        .greeting { padding: 34px 0 22px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+        .greeting h1 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); }
+        .greeting p { color: var(--muted); margin-top: 4px; }
+        .live-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; font-size: .8rem; font-weight: 600; color: var(--accent); background: rgba(34,229,139,.1); border: 1px solid rgba(34,229,139,.25); }
+        .live-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,229,139,.7); } 70% { box-shadow: 0 0 0 9px rgba(34,229,139,0); } 100% { box-shadow: 0 0 0 0 rgba(34,229,139,0); } }
+
+        /* ---------- Stat cards ---------- */
+        .stat-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 18px; }
+        .stat-card { padding: 22px; position: relative; overflow: hidden; }
+        .stat-label { font-size: .76rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+        .stat-label svg { width: 15px; height: 15px; }
+
+        .battery-row { display: flex; align-items: center; gap: 22px; margin-top: 12px; }
+        .ring { position: relative; width: 128px; height: 128px; flex: none; }
+        .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ring .track { stroke: rgba(255,255,255,.08); }
+        .ring .bar { stroke: url(#ringGrad); stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.3,.8,.3,1), stroke .4s; }
+        .ring.low .bar { stroke: var(--danger); }
+        .ring.mid .bar { stroke: var(--warn); }
+        .ring-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+        .ring-center b { font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+        .ring-center b small { font-size: 1rem; font-weight: 500; color: var(--muted); }
+        .ring.charging { filter: drop-shadow(0 0 14px rgba(34,229,139,.45)); }
+        .battery-meta { display: flex; flex-direction: column; gap: 6px; }
+        .battery-meta .state { font-weight: 600; }
+        .battery-meta .hint { color: var(--muted); font-size: .85rem; }
+
+        .big-num { font-family: var(--font-display); font-size: 2.3rem; font-weight: 700; margin-top: 12px; line-height: 1.1; }
+        .big-num .cur { color: var(--accent); margin-right: 2px; }
+        .stat-card .actions { margin-top: 16px; }
+        .vehicle-model { font-family: var(--font-display); font-size: 1.55rem; font-weight: 600; margin-top: 12px; line-height: 1.2; word-break: break-word; }
+        .vehicle-owner { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+        .tag { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 5px 11px; border-radius: 999px; font-size: .76rem; font-weight: 600; background: rgba(25,195,255,.1); color: var(--accent-2); border: 1px solid rgba(25,195,255,.25); }
+
+        /* ---------- Active session ---------- */
+        #session-section { margin-top: 22px; display: none; }
+        .session-card { padding: 24px; border-color: rgba(34,229,139,.35); background: linear-gradient(135deg, rgba(34,229,139,.09), rgba(25,195,255,.06)); position: relative; overflow: hidden; }
+        .session-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(34,229,139,.12) 50%, transparent 70%); background-size: 250% 100%; animation: sweep 3s linear infinite; pointer-events: none; }
+        @keyframes sweep { from { background-position: 150% 0; } to { background-position: -150% 0; } }
+        .session-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; position: relative; z-index: 1; }
+        .session-title { display: flex; align-items: center; gap: 14px; }
+        .bolt-anim { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #04130c; background: var(--accent-grad); animation: glow 1.6s ease-in-out infinite; }
+        .bolt-anim svg { width: 24px; height: 24px; }
+        @keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(34,229,139,.5); } 50% { box-shadow: 0 0 0 12px rgba(34,229,139,0); } }
+        .session-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; position: relative; z-index: 1; }
+        .metric { padding: 12px 14px; border-radius: 14px; background: rgba(0,0,0,.25); border: 1px solid var(--border); }
+        .metric span { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+        .metric b { display: block; font-family: var(--font-display); font-size: 1.3rem; margin-top: 2px; }
+        .full-banner { display: none; margin-top: 14px; padding: 11px 14px; border-radius: 12px; font-size: .88rem; color: #bfffdc; background: rgba(34,229,139,.12); border: 1px solid rgba(34,229,139,.35); position: relative; z-index: 1; }
+
+        /* ---------- Stations ---------- */
+        .section-head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin: 38px 0 18px; }
+        .section-head h2 { font-size: 1.5rem; }
+        .section-head p { color: var(--muted); font-size: .9rem; margin-top: 2px; }
+        .filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .select-wrap { position: relative; min-width: 220px; }
+        .select-wrap svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--accent); pointer-events: none; }
+        .select-wrap select { padding-left: 38px; font-weight: 500; }
+        .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: .86rem; color: var(--muted); user-select: none; }
+        .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .switch .track { width: 40px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid var(--border); position: relative; transition: background .2s; }
+        .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+        .switch input:checked + .track { background: var(--accent); }
+        .switch input:checked + .track::after { transform: translateX(18px); background: #04130c; }
+        .switch input:focus-visible + .track { box-shadow: 0 0 0 4px rgba(34,229,139,.2); }
+
+        .station-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+        .station { padding: 22px; transition: transform .2s, border-color .2s; animation: rise .5s both; }
+        .station:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+        @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        .station-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .station-top h3 { font-size: 1.12rem; }
+        .loc { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .86rem; margin-top: 5px; }
+        .loc svg { width: 14px; height: 14px; flex: none; color: var(--accent-2); }
+        .district-pill { flex: none; padding: 4px 10px; border-radius: 999px; font-size: .72rem; font-weight: 600; color: var(--accent-2); background: rgba(25,195,255,.1); border: 1px solid rgba(25,195,255,.22); }
+        .avail { margin-top: 14px; font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+        .avail .bar { flex: 1; height: 5px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+        .avail .bar i { display: block; height: 100%; background: var(--accent-grad); border-radius: 99px; }
+        .ports { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 16px; }
+        .port { padding: 14px; border-radius: 14px; background: rgba(0,0,0,.22); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .port-head { display: flex; justify-content: space-between; align-items: center; }
+        .port-id { font-weight: 600; font-size: .9rem; }
+        .type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .03em; }
+        .type-badge svg { width: 11px; height: 11px; }
+        .type-fast { color: #04130c; background: var(--accent-grad); }
+        .type-standard { color: var(--text); background: rgba(255,255,255,.1); border: 1px solid var(--border); }
+        .rate { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; }
+        .rate small { font-family: var(--font); font-size: .75rem; font-weight: 400; color: var(--muted); }
+        .status { display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; font-weight: 600; }
+        .status i { width: 8px; height: 8px; border-radius: 50%; }
+        .status-available { color: var(--accent); } .status-available i { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .status-occupied { color: var(--danger); } .status-occupied i { background: var(--danger); }
+
+        .empty { grid-column: 1 / -1; text-align: center; padding: 50px 20px; color: var(--muted); }
+        .empty svg { width: 46px; height: 46px; margin: 0 auto 12px; color: var(--faint); }
+        .skeleton { height: 230px; border-radius: var(--radius); background: linear-gradient(100deg, rgba(255,255,255,.04) 30%, rgba(255,255,255,.09) 50%, rgba(255,255,255,.04) 70%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border: 1px solid var(--border); }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        /* ---------- Modals ---------- */
+        .modal-overlay { display: none; position: fixed; inset: 0; z-index: 2000; justify-content: center; align-items: center; padding: 20px; background: rgba(2,5,9,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); overflow-y: auto; }
+        .modal-content { width: 100%; max-width: 440px; margin: auto; padding: 28px; background: rgba(13,20,30,.96); border: 1px solid var(--border-strong); border-radius: 22px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.9); animation: pop .3s cubic-bezier(.2,.9,.3,1.15); }
+        @keyframes pop { from { opacity: 0; transform: scale(.94) translateY(10px); } to { opacity: 1; transform: none; } }
+        .modal-head { text-align: center; margin-bottom: 18px; }
+        .modal-ico { width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 16px; display: grid; place-items: center; color: #04130c; background: var(--accent-grad); }
+        .modal-ico svg { width: 26px; height: 26px; }
+        .modal-head h2 { font-size: 1.4rem; }
+        .modal-head p { color: var(--muted); font-size: .88rem; margin-top: 4px; }
+
+        .quick-amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+        .qa { padding: 9px 0; border-radius: 10px; font-weight: 600; font-size: .86rem; cursor: pointer; color: var(--text); background: var(--surface); border: 1px solid var(--border); transition: all .15s; }
+        .qa:hover { border-color: var(--accent); }
+        .qa.active { color: #04130c; background: var(--accent-grad); border-color: transparent; }
+        .qr-box { text-align: center; margin: 16px 0 6px; }
+        .qr-box p { font-size: .82rem; color: var(--muted); margin-bottom: 10px; }
+        .qr-box img { width: 170px; height: 170px; padding: 8px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 3px rgba(34,229,139,.5), 0 14px 34px -12px rgba(34,229,139,.5); }
+        .modal-actions { display: grid; gap: 10px; margin-top: 18px; }
+
+        .bill-card { border-radius: 16px; background: rgba(0,0,0,.28); border: 1px dashed var(--border-strong); padding: 6px 16px; }
+        .bill-row { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; font-size: .9rem; border-bottom: 1px dashed var(--border); }
+        .bill-row span:first-child { color: var(--muted); }
+        .bill-row:last-child { border-bottom: 0; }
+        .bill-total { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+        .bill-total span:first-child { color: var(--text); }
+        .pay-label { margin: 20px 0 10px; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+        .payment-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .payment-btn { padding: 13px 12px; border-radius: 14px; cursor: pointer; text-align: center; font-size: .86rem; font-weight: 600; color: var(--muted); background: var(--surface); border: 1.5px solid var(--border); transition: all .15s; }
+        .payment-btn small { display: block; font-weight: 500; color: var(--faint); margin-top: 2px; }
+        .payment-btn:hover { border-color: var(--border-strong); }
+        .payment-btn.active { color: var(--text); border-color: var(--accent); background: rgba(34,229,139,.09); }
+        .payment-btn.active small { color: var(--accent); }
+
+        .confirm-text { text-align: center; color: var(--muted); font-size: .92rem; margin-bottom: 4px; }
+
+        @media (max-width: 960px) {
+            .stat-grid { grid-template-columns: 1fr 1fr; }
+            .stat-grid .stat-card:first-child { grid-column: 1 / -1; }
+        }
+        @media (max-width: 720px) {
+            .station-list { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: 1fr; }
+            .brand-name { font-size: .95rem; } .brand-sub { display: none; }
+            .user-chip div:last-child { display: none; }
+            .user-chip { padding: 5px; }
+            .session-metrics { grid-template-columns: 1fr; }
+            .select-wrap { min-width: 0; width: 100%; }
+            .filters { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast-root"></div>
+
+    <!-- ================= Top bar ================= -->
+    <header class="topbar">
+        <div class="topbar-in">
+            <div class="brand">
+                <div class="brand-mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.4z"/></svg></div>
+                <div><div class="brand-name">EV Charging Network</div><div class="brand-sub">Kerala</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="user-chip">
+                    <div class="avatar" id="avatar">U</div>
+                    <div><small>Signed in</small><b id="chip-name">User</b></div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="logout()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <!-- ================= Greeting ================= -->
+        <div class="greeting">
+            <div>
+                <h1>Hello, <span class="grad-text" id="greet-name" style="background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent;">driver</span></h1>
+                <p>Here is your vehicle status and the chargers around you.</p>
+            </div>
+            <span class="live-pill"><i></i> Live network</span>
+        </div>
+
+        <!-- ================= Vehicle / battery / wallet ================= -->
+        <section class="stat-grid" aria-label="Vehicle overview">
+            <div class="card stat-card">
+                <div class="stat-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/></svg>
+                    Battery level
+                </div>
+                <div class="battery-row">
+                    <div class="ring" id="ring">
+                        <svg viewBox="0 0 120 120">
+                            <defs>
+                                <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stop-color="#22e58b"/><stop offset="100%" stop-color="#19c3ff"/>
+                                </linearGradient>
+                            </defs>
+                            <circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+                            <circle class="bar" id="ring-bar" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-dasharray="326.73" stroke-dashoffset="326.73"/>
+                        </svg>
+                        <div class="ring-center"><b><span id="battery-pct">0</span><small>%</small></b></div>
+                    </div>
+                    <div class="battery-meta">
+                        <div class="state" id="battery-state">Checking...</div>
+                        <div class="hint" id="battery-hint">Syncing with your vehicle</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M16 15h2"/></svg>
+                    Wallet balance
+                </div>
+                <div class="big-num"><span class="cur">&#8377;</span><span id="balance">0.00</span></div>
+                <div class="actions"><button class="btn btn-sm" onclick="openWalletModal()">+ Top up wallet</button></div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/></svg>
+                    Connected vehicle
+                </div>
+                <div class="vehicle-model" id="ev-model">Loading...</div>
+                <div class="vehicle-owner">Owner: <span id="cust-name">Loading...</span></div>
+                <span class="tag">&#9679; Paired</span>
+            </div>
+        </section>
+
+        <!-- ================= Active session ================= -->
+        <section id="session-section" aria-live="polite">
+            <div class="card session-card">
+                <div class="session-head">
+                    <div class="session-title">
+                        <div class="bolt-anim"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.4z"/></svg></div>
+                        <div>
+                            <h3 style="font-size:1.2rem;" id="session-title">Charging in progress</h3>
+                            <p style="color:var(--muted); font-size:.88rem;" id="session-sub">Session active</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" onclick="stopCharging()">Stop charging &amp; view bill</button>
+                </div>
+                <div class="session-metrics">
+                    <div class="metric"><span>Elapsed</span><b id="m-time">00:00</b></div>
+                    <div class="metric"><span>Battery gained</span><b id="m-gain">+0%</b></div>
+                    <div class="metric"><span>Energy (est.)</span><b id="m-kwh">0.00 kWh</b></div>
+                </div>
+                <div class="full-banner" id="full-banner">Battery is 100% charged. Stop charging to disconnect and release the port.</div>
+            </div>
+        </section>
+
+        <!-- ================= Stations ================= -->
+        <div class="section-head">
+            <div>
+                <h2>Nearby stations</h2>
+                <p id="station-count">Chargers across Kerala</p>
+            </div>
+            <div class="filters">
+                <label class="switch"><input type="checkbox" id="only-available" onchange="applyStationView()"><span class="track"></span>Available only</label>
+                <div class="select-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <select id="district-filter" aria-label="Filter by district" onchange="filterStationsByDistrict()">
+                        <option value="Thiruvananthapuram" selected>Thiruvananthapuram</option>
+                        <option value="Kollam">Kollam</option>
+                        <option value="Pathanamthitta">Pathanamthitta</option>
+                        <option value="Alappuzha">Alappuzha</option>
+                        <option value="Kottayam">Kottayam</option>
+                        <option value="Idukki">Idukki</option>
+                        <option value="Ernakulam">Ernakulam</option>
+                        <option value="Thrissur">Thrissur</option>
+                        <option value="Palakkad">Palakkad</option>
+                        <option value="Malappuram">Malappuram</option>
+                        <option value="Kozhikode">Kozhikode</option>
+                        <option value="Wayanad">Wayanad</option>
+                        <option value="Kannur">Kannur</option>
+                        <option value="Kasaragod">Kasaragod</option>
+                        <option value="All">All Kerala Stations</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="station-list" id="stations-list">
+            <div class="skeleton"></div><div class="skeleton"></div>
+        </div>
+    </main>
+
+    <!-- ================= Wallet top-up modal ================= -->
+    <div id="wallet-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wallet-title">
+        <div class="modal-content">
+            <div class="modal-head">
+                <div class="modal-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg></div>
+                <h2 id="wallet-title">Wallet top-up</h2>
+                <p>Add money to pay for charging sessions instantly.</p>
+            </div>
+            <div class="quick-amounts" id="quick-amounts">
+                <button type="button" class="qa" onclick="setTopup(200)">&#8377;200</button>
+                <button type="button" class="qa active" onclick="setTopup(500)">&#8377;500</button>
+                <button type="button" class="qa" onclick="setTopup(1000)">&#8377;1000</button>
+                <button type="button" class="qa" onclick="setTopup(2000)">&#8377;2000</button>
+            </div>
+            <label class="field" style="margin-bottom:0;"><span>Amount (&#8377;)</span>
+                <input type="number" id="topup-amount" value="500" min="100" step="50" placeholder="Enter amount">
+            </label>
+            <div class="qr-box" id="upi-qr-section">
+                <p>Scan with GPay / PhonePe / Paytm</p>
+                <img id="upi-qr-img" src="" alt="Dynamic UPI payment QR code">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="addMoneyToWallet()">Confirm payment &amp; add balance</button>
+                <button class="btn btn-ghost" onclick="closeWalletModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= Receipt / checkout modal ================= -->
+    <div id="bill-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bill-title">
+        <div class="modal-content">
+            <div class="modal-head">
+                <div class="modal-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg></div>
+                <h2 id="bill-title">Charging receipt</h2>
+                <p>Session complete. Review your bill and pay.</p>
+            </div>
+            <div class="bill-card">
+                <div class="bill-row"><span>Energy consumed</span><span><strong id="bill-watts">0</strong> W &middot; <span id="bill-kwh" style="color:inherit">0.00</span> kWh</span></div>
+                <div class="bill-row"><span>Charging rate</span><span id="bill-rate">&#8377;0.00 / kWh</span></div>
+                <div class="bill-row"><span>Base amount</span><span id="bill-base">&#8377;0.00</span></div>
+                <div class="bill-row"><span>GST (18%)</span><span id="bill-gst">&#8377;0.00</span></div>
+                <div class="bill-row bill-total"><span>Total billed</span><span id="bill-total">&#8377;0.00</span></div>
+            </div>
+
+            <div class="pay-label">Payment method</div>
+            <div class="payment-options">
+                <div class="payment-btn active" id="pay-opt-wallet" onclick="selectCheckoutPayment('wallet')">Wallet<small>&#8377;<span id="checkout-balance">0.00</span> available</small></div>
+                <div class="payment-btn" id="pay-opt-gpay" onclick="selectCheckoutPayment('gpay')">GPay / UPI<small>Scan to pay</small></div>
+            </div>
+            <div id="gpay-qr-checkout" class="qr-box" style="display:none;">
+                <p>Scan with GPay to pay directly</p>
+                <img id="gpay-checkout-qr" src="" alt="GPay checkout QR code" style="width:150px;height:150px;">
+            </div>
+            <div class="modal-actions"><button class="btn" onclick="processFinalPayment()">Pay now</button></div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
